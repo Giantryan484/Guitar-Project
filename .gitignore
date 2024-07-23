@@ -1,0 +1,10 @@
+old_GeneratedData/
+OutputImages/
+Spectrograms/
+WAVs/
+(NON-FUNCTIONAL) Synthesizer-App/
+_saved_tf_models/
+GeneratedData/
+*saved_tf_models/
+Data(4BackContext)/
+.DS_Store
