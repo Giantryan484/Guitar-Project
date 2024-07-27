@@ -95,7 +95,18 @@ def process_wav_file_and_predict(model, filename):
 
     return predictions
 
-def cleanup_and_aggregate(model, data, window_size, threshold=0.5):
+# Helper function to create moving window slices
+def create_windows(data, window_size):
+    num_samples, width = data.shape
+    windows = []
+    for i in range(num_samples - window_size + 1):
+        window = data[i : i + window_size]
+        windows.append(window.flatten())
+    return np.array(windows)
+
+def cleanup_and_aggregate(model, inputs, window_size=10, threshold=0.5):
+    data = create_windows(inputs)
+    
     num_samples, width = data.shape
     predictions = np.zeros((num_samples, width))
     counts = np.zeros((num_samples, width))
@@ -277,7 +288,15 @@ def TABs_from_output(output):
 # <---END Post-Processing--->
 
 def main(filename):
-    model = tf.keras.models.load_model()
-    cleanup_model = tf.keras.models.load_model()
+    model = tf.keras.models.load_model("") # model path
+    cleanup_model = tf.keras.models.load_model("") # cleanup model path
+    
+    predictions = process_wav_file_and_predict(model, filename)
+    cleaned_predictions = cleanup_and_aggregate(cleanup_model, predictions)
+    process_slices(cleaned_predictions)
+
+
+main("test.wav")
+    
     
     
