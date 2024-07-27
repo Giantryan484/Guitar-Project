@@ -92,11 +92,11 @@ def change_sample_rate(file_path):
     return new_filepath
 
 # Filename -> predictions
-def process_wav_file_and_predict(model, filename):
+def process_wav_file_and_predict(model, filename, bpm):
     # Generate spectrogram slices
     
     resampled_wav_filename = change_sample_rate(filename)
-    spectrogram_slices = create_amplitude_tensors(resampled_wav_filename, 120)
+    spectrogram_slices = create_amplitude_tensors(resampled_wav_filename, bpm)
     os.remove(resampled_wav_filename)
 
     # Reshape the slices for the model (add channel dimension)
@@ -109,25 +109,14 @@ def process_wav_file_and_predict(model, filename):
 
     return predictions
 
-# Helper function to create moving window slices
-def create_windows(data, window_size):
-    num_samples, width = data.shape
-    windows = []
-    for i in range(num_samples - window_size + 1):
-        window = data[i : i + window_size]
-        windows.append(window.flatten())
-    return np.array(windows)
-
-def cleanup_and_aggregate(model, inputs, window_size=10, threshold=0.5):
-    data = create_windows(inputs)
-    
+def cleanup_and_aggregate(model, data, window_size=10, threshold=0.5):    
     num_samples, width = data.shape
     predictions = np.zeros((num_samples, width))
     counts = np.zeros((num_samples, width))
 
     for i in range(num_samples - window_size + 1):
         window = data[i:i+window_size].flatten().reshape(1, -1)
-        pred = model.predict(window)
+        pred = model.predict(window, verbose=0)
         pred = pred.reshape(window_size, width)
         predictions[i:i+window_size] += pred
         counts[i:i+window_size] += 1
@@ -227,7 +216,8 @@ def process_slices(midi_slices):
 
         for combination in possible_sfrets:
             combination = list(combination)
-            if not check_for_duplicate_strings(combination + existing_fingerings):
+            # if not check_for_duplicate_strings(combination + existing_fingerings):
+            if not check_for_duplicate_strings(combination):
                 score = get_score(combination + existing_fingerings, prev_center) # account for current notes, center
                 # print(combination, score)
                 if score < best_score:
@@ -283,10 +273,13 @@ def TABs_from_output(output):
                 if current_measure:
                     formatted_tabs[string].append("".join(current_measure) + "-|-") # adds divider between rows
                     current_measure = []
-            note_at_position = "-" # default value to add is empty
+            note_at_position = "--" # default value to add is empty
             for pos, fret in TABs[string]:
                 if pos == i:
-                    note_at_position = fret # if present change value to add
+                    if len(fret) == 2:
+                        note_at_position = fret
+                    else:
+                        note_at_position = fret+"-" # if present change value to add
             current_measure.append(note_at_position)
         if current_measure:
             formatted_tabs[string].append("".join(current_measure) + "-|")
@@ -301,16 +294,16 @@ def TABs_from_output(output):
 
 # <---END Post-Processing--->
 
-def main(filename):
-    model = tf.keras.models.load_model("") # model path
-    cleanup_model = tf.keras.models.load_model("") # cleanup model path
+def main(filename, bpm):
+    model = tf.keras.models.load_model("saved_tf_models\BasicConvGuitarNotePredictor(512_input).keras") # model path
+    cleanup_model = tf.keras.models.load_model("saved_tf_models\DataCleaner(WindowSize10).h5") # cleanup model path
     
-    predictions = process_wav_file_and_predict(model, filename)
+    predictions = process_wav_file_and_predict(model, filename, bpm)
     cleaned_predictions = cleanup_and_aggregate(cleanup_model, predictions)
-    process_slices(cleaned_predictions)
+    TABs_from_output(process_slices(cleaned_predictions.tolist()))
 
 
-main("test.wav")
+main("test.wav", 80)
     
     
     
