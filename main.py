@@ -1,12 +1,15 @@
 # Pre-Processing
 import tensorflow as tf
-# import numpy as np
+import numpy as np
 from scipy.io import wavfile
 from scipy.signal import spectrogram, butter, filtfilt
 
+# Resampling WAVs and removing
+from pydub import AudioSegment
+import os
+
 # Post-Processing
 from itertools import combinations, product
-import numpy as np
 
 # <---Pre-Processing and Prediction--->
 
@@ -80,10 +83,21 @@ def create_amplitude_tensors(filename, bpm=120):
 
     return avg_slices_array
 
+def change_sample_rate(file_path):
+    sound = AudioSegment.from_file(file_path)
+    sound = sound.set_frame_rate(44100)
+    new_filepath = "tmp/"+file_path
+    sound.export(new_filepath, format="wav")
+
+    return new_filepath
+
 # Filename -> predictions
 def process_wav_file_and_predict(model, filename):
     # Generate spectrogram slices
-    spectrogram_slices = create_amplitude_tensors(filename, 120)
+    
+    resampled_wav_filename = change_sample_rate(filename)
+    spectrogram_slices = create_amplitude_tensors(resampled_wav_filename, 120)
+    os.remove(resampled_wav_filename)
 
     # Reshape the slices for the model (add channel dimension)
     spectrogram_slices = spectrogram_slices.reshape(
